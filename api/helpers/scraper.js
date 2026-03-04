@@ -17,19 +17,14 @@ async function melolohome() {
     const seen = new Set()
 
     const push = v => {
-        if (v.url && !seen.has(v.url)) {
-            seen.add(v.url)
-            data.push(v)
-        }
+        if (v.url && !seen.has(v.url)) { seen.add(v.url); data.push(v); }
     }
 
     $('div.min-w-82').each((_, e) => {
         const t = $(e).find('a[href^="https://melolo.com/dramas/"][class*="font-bold"]')
         if (!t.length) return
         push({
-            type: 'banner',
-            title: t.text().trim(),
-            url: t.attr('href'),
+            type: 'banner', title: t.text().trim(), url: t.attr('href'),
             image: $(e).find('img').last().attr('src') || $(e).find('img').last().attr('data-src'),
             description: $(e).find('div[class*="opacity-80"]').text().trim(),
             category: $(e).find('a[href^="https://melolo.com/category/"]').text().trim()
@@ -40,9 +35,7 @@ async function melolohome() {
         const t = $(e).find('a.text-Title')
         if (!t.length) return
         push({
-            type: 'list',
-            title: t.text().trim(),
-            url: t.attr('href'),
+            type: 'list', title: t.text().trim(), url: t.attr('href'),
             image: $(e).find('img').attr('src') || $(e).find('img').attr('data-src'),
             description: $(e).find('.text-slate-500').first().text().trim(),
             rating: $(e).find('.text-orange-500.font-bold').text().trim(),
@@ -55,9 +48,7 @@ async function melolohome() {
         const t = $(e).find('a.text-Title')
         if (!t.length) return
         push({
-            type: 'card',
-            title: t.text().trim(),
-            url: t.attr('href'),
+            type: 'card', title: t.text().trim(), url: t.attr('href'),
             image: $(e).find('img').attr('src') || $(e).find('img').attr('data-src'),
             rating: $(e).find('.bg-yellow-bg .text-text-blue').text().trim(),
             episodes: $(e).find('.text-Text').text().trim()
@@ -75,36 +66,22 @@ async function melolosearch(query) {
     $('.grid > div').each((_, e) => {
         const t = $(e).find('a.text-Title')
         if (!t.length) return
-
         const info = $(e).find('.text-Text').text().trim()
         const eps = info.split('·')[0]?.replace(/Eps?/i, '').trim() || null
-        const cat = $(e).find('.text-Text a').text().trim() || null
-
         data.push({
-            title: t.text().trim(),
-            url: 'https://melolo.com' + t.attr('href'),
+            title: t.text().trim(), url: 'https://melolo.com' + t.attr('href'),
             image: $(e).find('img').attr('src') || $(e).find('img').attr('data-src'),
             rating: $(e).find('.bg-yellow-bg').text().trim() || null,
-            episodes: eps,
-            category: cat
+            episodes: eps, category: $(e).find('.text-Text a').text().trim() || null
         })
     })
-
     return data
 }
 
 async function melolodetail(url) {
     const get = await axios.get(url, { headers })
     const html = get.data
-
-    const data = {
-        title: null,
-        description: null,
-        cover_image: null,
-        genres: [],
-        rating: null,
-        total_episodes: 0
-    }
+    const data = { title: null, description: null, cover_image: null, genres: [], rating: null, total_episodes: 0 }
 
     const ld = /<script type="application\/ld\+json">(.*?)<\/script>/gs
     let m
@@ -118,93 +95,30 @@ async function melolodetail(url) {
             if (j.numberOfEpisodes) data.total_episodes = j.numberOfEpisodes
         } catch {}
     }
-
     return data
 }
 
 async function melolodl(url) {
     const get = await axios.get(url, { headers })
     const html = get.data
-
     const title = html.match(/<title>(.*?)<\/title>/)?.[1]?.split('|')[0].trim() || 'unknown'
-
     let episodes = []
     const m = html.match(/\\"episode_list\\":(\[.*?\])/)
 
     if (m?.[1]) {
-        try {
-            episodes = JSON.parse(m[1].replace(/\\"/g, '"'))
-        } catch {
-            const r = /"episode_id":(\d+),"url":"(.*?)"/g
-            let x
+        try { episodes = JSON.parse(m[1].replace(/\\"/g, '"')) } 
+        catch {
+            const r = /"episode_id":(\d+),"url":"(.*?)"/g; let x;
             while ((x = r.exec(m[1])) !== null) episodes.push({ episode_id: +x[1], url: x[2] })
         }
     } else {
-        const r = /"episode_id":(\d+),"url":"(https:[^"]+)"/g
-        let x
+        const r = /"episode_id":(\d+),"url":"(https:[^"]+)"/g; let x;
         while ((x = r.exec(html)) !== null) episodes.push({ episode_id: +x[1], url: x[2] })
         episodes = [...new Map(episodes.map(v => [v.episode_id, v])).values()]
     }
 
     if (!episodes.length) throw new Error('episode not found')
-
-    return {
-        title,
-        total_episodes: episodes.length,
-        episodes
-    }
+    return { title, total_episodes: episodes.length, episodes }
 }
 
-async function melolocategory(url) {
-    const get = await axios.get(url, { headers })
-    const $ = cheerio.load(get.data)
-    const data = {}
-
-    $('h2').each((_, h) => {
-        const name = $(h).text().trim()
-        const box = $(h).closest('a').next('div')
-        const list = []
-        box.find('div.relative').each((_, d) => {
-            const a = $(d).find('a').first()
-            const title = a.text().trim()
-            if (!title) return
-            const href = a.attr('href')
-            list.push({
-                title,
-                url: href?.startsWith('http') ? href : 'https://melolo.com' + href,
-                image: $(d).find('img').attr('src') || $(d).find('img').attr('data-src'),
-                rating: $(d).find('svg.lucide-star').parent().text().trim(),
-                episodes: $(d).find('div.text-Text').text().trim()
-            })
-        })
-        if (list.length) data[name] = list
-    })
-
-    if (!Object.keys(data).length) {
-        const list = []
-        $('div.grid div.relative').each((_, d) => {
-            const a = $(d).find('a').first()
-            const title = a.text().trim()
-            if (!title) return
-            const href = a.attr('href')
-            list.push({
-                title,
-                url: href?.startsWith('http') ? href : 'https://melolo.com' + href,
-                image: $(d).find('img').attr('src') || $(d).find('img').attr('data-src'),
-                rating: $(d).find('svg.lucide-star').parent().text().trim(),
-                episodes: $(d).find('div.text-Text').text().trim()
-            })
-        })
-        data[$('h1').text().trim() || 'Dramas'] = list
-    }
-
-    return data
-}
-
-module.exports = {
-    melolohome,
-    melolosearch,
-    melolodetail,
-    melolodl,
-    melolocategory
-}
+module.exports = { melolohome, melolosearch, melolodetail, melolodl } 
