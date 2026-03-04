@@ -3,185 +3,359 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stream UI</title>
+    <title>Stream UI Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .scrollbar-hide::-webkit-scrollbar { display: none; }
-        body { background-color: #0b1120; color: #f8fafc; font-family: ui-sans-serif, system-ui, sans-serif; }
-        .glass-panel { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        body { background-color: #0b1120; color: #f8fafc; font-family: ui-sans-serif, system-ui, sans-serif; overflow-x: hidden; }
+        .glass-panel { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(16px); border-top: 1px solid rgba(255, 255, 255, 0.05); }
         .neon-glow { box-shadow: 0 0 15px rgba(14, 165, 233, 0.3); }
-        .gradient-overlay { background: linear-gradient(to top, rgba(11, 17, 32, 1) 0%, rgba(11, 17, 32, 0.5) 60%, transparent 100%); }
+        .gradient-overlay { background: linear-gradient(to top, rgba(11, 17, 32, 1) 0%, rgba(11, 17, 32, 0.4) 60%, transparent 100%); }
+        
+        /* Floating Player Styles */
+        #video-container { transition: all 0.3s ease-in-out; }
+        .player-normal { width: 100%; position: sticky; top: 0; z-index: 40; background: black; }
+        .player-floating { position: fixed; bottom: 80px; right: 16px; width: 180px; border-radius: 12px; overflow: hidden; z-index: 60; box-shadow: 0 10px 25px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.1); }
+        .view-section { display: none; animation: fadeIn 0.3s ease; }
+        .view-active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body class="pb-24">
 
-    <div class="sticky top-0 z-40 glass-panel px-4 py-4 mb-4">
-        <div class="max-w-md mx-auto flex gap-3 items-center">
-            <div class="relative flex-1">
-                <input type="text" id="searchInput" placeholder="Cari anime atau drama..." class="w-full bg-[#1e293b] text-sm text-white rounded-full py-2.5 pl-10 pr-4 outline-none border border-slate-700 focus:border-[#0ea5e9] transition-colors shadow-inner">
-                <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+    <div id="video-container" class="hidden">
+        <div class="relative w-full aspect-video bg-black group">
+            <video id="main-player" controls autoplay class="w-full h-full object-contain" referrerpolicy="no-referrer"></video>
+            <div id="floating-controls" class="absolute top-1 right-1 hidden group-hover:flex gap-1 z-10">
+                <button onclick="maximizePlayer()" class="bg-black/60 p-1.5 rounded-full backdrop-blur text-white"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg></button>
+                <button onclick="closePlayer()" class="bg-red-500/80 p-1.5 rounded-full backdrop-blur text-white"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
             </div>
-            <button id="searchBtn" class="bg-[#0ea5e9] text-white p-2.5 rounded-full neon-glow transition-transform active:scale-95">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-            </button>
+        </div>
+        <div id="player-meta" class="p-4 bg-[#0f172a] hidden">
+            <h3 id="now-playing-title" class="font-bold text-lg text-white line-clamp-2">Memuat...</h3>
+            <p id="now-playing-ep" class="text-sm text-[#0ea5e9] font-semibold mt-1">Episode --</p>
         </div>
     </div>
 
-    <div class="p-4 max-w-md mx-auto" id="main-content">
-        
-        <div id="home-view">
-            <div class="bg-[#1e293b]/50 border border-slate-700/50 p-4 rounded-xl mb-6 relative overflow-hidden glass-panel">
+    <div class="max-w-md mx-auto relative" id="app-content">
+
+        <div id="view-home" class="view-section view-active p-4 pt-6">
+            <div class="bg-[#1e293b]/50 border border-slate-700/50 p-4 rounded-xl mb-6 relative overflow-hidden">
                 <div class="absolute left-0 top-0 w-1 h-full bg-[#0ea5e9]"></div>
                 <p class="text-[13px] text-slate-300 leading-relaxed font-medium">Kami berupaya memberikan yang terbaik untuk Anda.<br>Terimakasih atas dukungannya 😊</p>
             </div>
 
-            <h2 class="text-lg font-bold mb-4">Semua Kategori</h2>
-            <div class="flex gap-2.5 overflow-x-auto scrollbar-hide mb-8">
-                <button class="px-5 py-2 bg-[#0ea5e9] rounded-xl text-[13px] font-semibold text-white neon-glow shrink-0">Semua</button>
-                <button class="px-5 py-2 bg-[#1e293b] rounded-xl text-[13px] font-medium text-slate-300 shrink-0">Anime</button>
-                <button class="px-5 py-2 bg-[#1e293b] rounded-xl text-[13px] font-medium text-slate-300 shrink-0">Action</button>
-                <button class="px-5 py-2 bg-[#1e293b] rounded-xl text-[13px] font-medium text-slate-300 shrink-0">Fantasy</button>
-            </div>
-
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold">Sedang Populer</h2>
-                <span class="text-[11px] text-slate-400 font-bold tracking-wider cursor-pointer hover:text-white">LIHAT SEMUA &gt;</span>
             </div>
-            <div id="populer-container" class="flex gap-3 overflow-x-auto scrollbar-hide mb-8 snap-x">
+            <div id="home-populer" class="flex gap-3 overflow-x-auto scrollbar-hide mb-8 snap-x">
                 <p class="text-sm text-slate-500 animate-pulse">Memuat data...</p>
             </div>
 
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold">Episode Terbaru</h2>
-                <span class="text-[11px] text-slate-400 font-bold tracking-wider cursor-pointer hover:text-white">LIHAT JADWAL &gt;</span>
             </div>
-            <div id="terbaru-container" class="grid grid-cols-2 gap-3 pb-4">
+            <div id="home-terbaru" class="grid grid-cols-2 gap-3">
                 <p class="text-sm text-slate-500 animate-pulse col-span-2">Memuat data...</p>
             </div>
         </div>
 
-        <div id="search-view" class="hidden">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-lg font-bold">Hasil Pencarian</h2>
-                <button id="backBtn" class="text-[11px] bg-slate-800 px-3 py-1 rounded text-slate-300 font-bold">KEMBALI</button>
+        <div id="view-search" class="view-section p-4 pt-6">
+            <div class="relative mb-6">
+                <input type="text" id="searchInput" placeholder="Cari anime atau drama..." class="w-full bg-[#1e293b] text-sm text-white rounded-xl py-3 pl-12 pr-4 outline-none border border-slate-700 focus:border-[#0ea5e9] shadow-inner">
+                <svg class="w-5 h-5 text-slate-400 absolute left-4 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <button onclick="doSearch()" class="absolute right-2 top-1.5 bg-[#0ea5e9] text-white px-3 py-1.5 rounded-lg text-xs font-bold neon-glow">CARI</button>
             </div>
-            <div id="search-results-container" class="grid grid-cols-2 gap-3 pb-4">
+            <h2 class="text-lg font-bold mb-4">Hasil Pencarian</h2>
+            <div id="search-results" class="grid grid-cols-2 gap-3 pb-4">
+                <p class="text-sm text-slate-500 col-span-2 text-center py-10">Ketik judul di atas untuk mencari.</p>
+            </div>
+        </div>
+
+        <div id="view-detail" class="view-section">
+            <div class="relative w-full h-64">
+                <img id="detail-cover" src="" class="w-full h-full object-cover opacity-60">
+                <div class="absolute inset-0 bg-gradient-to-t from-[#0b1120] via-[#0b1120]/80 to-transparent"></div>
+                <button onclick="switchTab('home')" class="absolute top-4 left-4 bg-black/50 p-2 rounded-full backdrop-blur"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg></button>
+            </div>
+            <div class="px-4 -mt-10 relative z-10">
+                <h1 id="detail-title" class="text-2xl font-bold text-white mb-2 leading-tight">Memuat...</h1>
+                <div id="detail-genres" class="flex flex-wrap gap-2 mb-4"></div>
+                <p id="detail-desc" class="text-sm text-slate-400 line-clamp-4 mb-6 leading-relaxed"></p>
+                
+                <h3 class="font-bold text-white mb-3">Daftar Episode</h3>
+                <div id="detail-episodes" class="grid grid-cols-4 sm:grid-cols-5 gap-2 mb-8">
+                    <p class="text-xs text-slate-500 col-span-4 animate-pulse">Mengambil tautan video...</p>
                 </div>
+            </div>
+        </div>
+
+        <div id="view-library" class="view-section p-4 pt-6">
+            <h2 class="text-xl font-bold mb-1">Library</h2>
+            <p class="text-sm text-slate-400 mb-6">Terakhir kali kamu tonton</p>
+            <div id="library-list" class="flex flex-col gap-3">
+                </div>
+        </div>
+
+        <div id="view-profile" class="view-section p-4 pt-10 text-center">
+            <div class="w-24 h-24 mx-auto rounded-full bg-gradient-to-tr from-[#0ea5e9] to-purple-600 p-1 mb-4 neon-glow">
+                <div class="w-full h-full bg-slate-900 rounded-full flex items-center justify-center text-3xl font-bold">Dev</div>
+            </div>
+            <h2 class="text-2xl font-bold mb-1">Developer</h2>
+            <p class="text-[#0ea5e9] text-sm font-semibold mb-6">Fullstack Creator & Web3 Enthusiast</p>
+            
+            <div class="bg-[#1e293b]/50 border border-slate-700 p-5 rounded-2xl text-left shadow-lg">
+                <h3 class="font-bold mb-2">Tentang Aplikasi</h3>
+                <p class="text-sm text-slate-400 leading-relaxed mb-4">Aplikasi streaming ini dibangun dengan Vercel Serverless, Node.js Scraper, dan SPA Architecture. Dilengkapi fitur Local History dan Floating Video Player.</p>
+                <button class="w-full bg-slate-800 hover:bg-[#0ea5e9] transition-colors py-2.5 rounded-xl text-sm font-bold shadow-md">Dukung Project Ini</button>
+            </div>
         </div>
 
     </div>
 
-    <div class="fixed bottom-0 left-0 w-full glass-panel p-2 px-6 flex justify-between items-center z-50">
-        <div class="flex flex-col items-center text-[#0ea5e9] cursor-pointer">
+    <div class="fixed bottom-0 left-0 w-full glass-panel px-6 py-2.5 flex justify-between items-center z-50">
+        <button onclick="switchTab('home')" id="nav-home" class="nav-btn flex flex-col items-center text-[#0ea5e9] transition-transform active:scale-95">
             <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path></svg>
             <span class="text-[10px] font-bold">Home</span>
-        </div>
-        <div class="flex flex-col items-center text-slate-500 cursor-pointer">
-            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            <span class="text-[10px] font-semibold">Schedule</span>
-        </div>
-        <div class="flex flex-col items-center text-slate-500 cursor-pointer">
-            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
-            <span class="text-[10px] font-semibold">Catalog</span>
-        </div>
-        <div class="flex flex-col items-center text-slate-500 cursor-pointer">
-            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+        </button>
+        <button onclick="switchTab('search')" id="nav-search" class="nav-btn flex flex-col items-center text-slate-500 transition-transform active:scale-95">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <span class="text-[10px] font-semibold">Search</span>
+        </button>
+        <button onclick="switchTab('library'); loadLibrary();" id="nav-library" class="nav-btn flex flex-col items-center text-slate-500 transition-transform active:scale-95">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
             <span class="text-[10px] font-semibold">Library</span>
-        </div>
-        <div class="flex flex-col items-center text-slate-500 cursor-pointer">
+        </button>
+        <button onclick="switchTab('profile')" id="nav-profile" class="nav-btn flex flex-col items-center text-slate-500 transition-transform active:scale-95">
             <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
             <span class="text-[10px] font-semibold">Profile</span>
-        </div>
+        </button>
     </div>
 
     <script>
-        // --- Helper Rendering Card ---
+        // 1. Navigation & State Management
+        let currentDramaUrl = '';
+        let currentDramaImage = '';
+        let isPlayerActive = false;
+
+        function switchTab(tabId) {
+            // Hide all views
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('view-active'));
+            // Show target
+            document.getElementById(`view-${tabId}`).classList.add('view-active');
+            window.scrollTo(0, 0);
+
+            // Update Nav Icons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-[#0ea5e9]');
+                btn.classList.add('text-slate-500');
+            });
+            if(document.getElementById(`nav-${tabId}`)) {
+                document.getElementById(`nav-${tabId}`).classList.add('text-[#0ea5e9]');
+                document.getElementById(`nav-${tabId}`).classList.remove('text-slate-500');
+            }
+
+            // Handle Floating Player Logic
+            const playerContainer = document.getElementById('video-container');
+            const floatingControls = document.getElementById('floating-controls');
+            const metaControls = document.getElementById('player-meta');
+
+            if (isPlayerActive) {
+                if (tabId === 'detail') {
+                    // Normalize player
+                    playerContainer.className = 'player-normal';
+                    floatingControls.classList.add('hidden');
+                    metaControls.classList.remove('hidden');
+                } else {
+                    // Float player
+                    playerContainer.className = 'player-floating';
+                    floatingControls.classList.remove('hidden');
+                    metaControls.classList.add('hidden');
+                }
+            }
+        }
+
+        // 2. UI Rendering Helpers
         function createCard(item, isPopuler = false) {
-            const isTamat = !item.episodes || item.episodes.toLowerCase().includes('tamat');
-            const badgeBg = isTamat ? 'bg-[#ef4444]' : 'bg-[#0ea5e9]';
-            const badgeText = isTamat ? 'TAMAT' : (item.episodes || 'NEW');
+            const badgeBg = item.episodes ? 'bg-[#0ea5e9]' : 'bg-[#ef4444]';
+            const badgeText = item.episodes || 'TAMAT';
+            const cleanUrl = item.url;
 
             if(isPopuler) {
                 return `
-                <div class="min-w-[130px] w-[130px] relative rounded-xl overflow-hidden shadow-lg snap-start cursor-pointer group">
-                    <img src="${item.image}" class="w-full h-[180px] object-cover transition-transform duration-300 group-hover:scale-105" referrerpolicy="no-referrer">
-                    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div class="w-10 h-10 rounded-full bg-black/60 backdrop-blur border border-white/20 flex items-center justify-center"><svg class="w-5 h-5 text-white ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4l12 6-12 6z"></path></svg></div>
-                    </div>
+                <div onclick="openDetail('${cleanUrl}', '${item.image}')" class="min-w-[130px] w-[130px] relative rounded-xl overflow-hidden shadow-lg snap-start cursor-pointer group">
+                    <img src="${item.image}" class="w-full h-[180px] object-cover" referrerpolicy="no-referrer">
                     <div class="absolute inset-0 gradient-overlay"></div>
-                    <div class="absolute bottom-2 left-2 right-2">
-                        <p class="text-[10px] font-bold text-[#0ea5e9] mb-0.5">Populer</p>
-                        <p class="text-xs font-bold text-white leading-tight line-clamp-2">${item.title}</p>
-                    </div>
+                    <div class="absolute bottom-2 left-2 right-2"><p class="text-xs font-bold text-white line-clamp-2">${item.title}</p></div>
                 </div>`;
             }
-
             return `
-            <div class="relative rounded-xl overflow-hidden bg-[#1e293b] shadow-lg cursor-pointer group border border-slate-800 hover:border-slate-600 transition-colors">
-                <div class="absolute top-2 left-2 ${badgeBg} text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-md z-10 tracking-wide uppercase">${badgeText}</div>
-                <img src="${item.image}" class="w-full h-[200px] object-cover transition-transform duration-300 group-hover:scale-105" referrerpolicy="no-referrer">
+            <div onclick="openDetail('${cleanUrl}', '${item.image}')" class="relative rounded-xl overflow-hidden bg-[#1e293b] shadow-lg cursor-pointer border border-slate-800">
+                <div class="absolute top-2 left-2 ${badgeBg} text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-md z-10">${badgeText}</div>
+                <img src="${item.image}" class="w-full h-[200px] object-cover" referrerpolicy="no-referrer">
                 <div class="absolute inset-0 gradient-overlay"></div>
-                <div class="absolute bottom-2 left-2 right-2">
-                    <p class="text-[10px] font-bold text-slate-400 mb-0.5">${item.category || (isTamat ? 'Tamat' : 'Ongoing')}</p>
-                    <p class="text-[13px] font-bold text-white leading-tight line-clamp-2">${item.title}</p>
-                </div>
+                <div class="absolute bottom-2 left-2 right-2"><p class="text-[13px] font-bold text-white line-clamp-2">${item.title}</p></div>
             </div>`;
         }
 
-        // --- Fetch Data ---
-        async function loadHome() {
+        // 3. API Calls
+        async function initHome() {
             try {
                 const res = await fetch('/api/home');
                 const result = await res.json();
                 if (result.success) {
-                    const popData = result.data.filter(x => x.type === 'banner' || x.type === 'card');
-                    const terData = result.data.filter(x => x.type === 'list');
-
-                    document.getElementById('populer-container').innerHTML = popData.map(i => createCard(i, true)).join('');
-                    document.getElementById('terbaru-container').innerHTML = terData.map(i => createCard(i)).join('');
+                    const pop = result.data.filter(x => x.type === 'banner' || x.type === 'card');
+                    const ter = result.data.filter(x => x.type === 'list');
+                    document.getElementById('home-populer').innerHTML = pop.map(i => createCard(i, true)).join('');
+                    document.getElementById('home-terbaru').innerHTML = ter.map(i => createCard(i)).join('');
                 }
-            } catch (e) {
-                console.error(e);
-            }
+            } catch(e) { console.error(e); }
         }
 
-        async function handleSearch() {
-            const query = document.getElementById('searchInput').value;
-            if(!query) return;
+        async function doSearch() {
+            const q = document.getElementById('searchInput').value;
+            if(!q) return;
+            document.getElementById('search-results').innerHTML = '<p class="text-slate-500 col-span-2 text-center py-10 animate-pulse">Mencari data...</p>';
+            try {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+                const result = await res.json();
+                if(result.success && result.data.length > 0) {
+                    document.getElementById('search-results').innerHTML = result.data.map(i => createCard(i)).join('');
+                } else {
+                    document.getElementById('search-results').innerHTML = '<p class="text-slate-500 col-span-2 text-center py-10">Data tidak ditemukan.</p>';
+                }
+            } catch(e) { console.error(e); }
+        }
 
-            document.getElementById('home-view').classList.add('hidden');
-            document.getElementById('search-view').classList.remove('hidden');
+        // 4. Detail & Player Logic
+        async function openDetail(url, imageFallback) {
+            currentDramaUrl = url;
+            currentDramaImage = imageFallback;
+            switchTab('detail');
             
-            const container = document.getElementById('search-results-container');
-            container.innerHTML = '<p class="text-sm text-slate-500 col-span-2 animate-pulse">Mencari data...</p>';
+            // Set Loading State
+            document.getElementById('detail-cover').src = imageFallback;
+            document.getElementById('detail-title').innerText = "Memuat data...";
+            document.getElementById('detail-genres').innerHTML = "";
+            document.getElementById('detail-desc').innerText = "";
+            document.getElementById('detail-episodes').innerHTML = '<p class="text-xs text-slate-500 col-span-4 animate-pulse">Mengambil data...</p>';
 
             try {
-                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-                const result = await res.json();
+                // Fetch Meta and Episode Links Parallel
+                const [resMeta, resPlay] = await Promise.all([
+                    fetch(`/api/detail?url=${encodeURIComponent(url)}`),
+                    fetch(`/api/play?url=${encodeURIComponent(url)}`)
+                ]);
                 
-                if (result.success && result.data.length > 0) {
-                    container.innerHTML = result.data.map(i => createCard(i)).join('');
-                } else {
-                    container.innerHTML = '<p class="text-sm text-slate-500 col-span-2">Tidak ditemukan hasil.</p>';
+                const meta = await resMeta.json();
+                const play = await resPlay.json();
+
+                if (meta.success) {
+                    const d = meta.data;
+                    document.getElementById('detail-title').innerText = d.title || "Unknown Title";
+                    if(d.cover_image) document.getElementById('detail-cover').src = d.cover_image;
+                    document.getElementById('detail-desc').innerText = d.description || "Tidak ada sinopsis.";
+                    if(d.genres.length > 0) {
+                        document.getElementById('detail-genres').innerHTML = d.genres.map(g => `<span class="bg-slate-800 text-[#0ea5e9] text-[10px] font-bold px-2 py-1 rounded">${g}</span>`).join('');
+                    }
                 }
-            } catch (e) {
-                container.innerHTML = '<p class="text-sm text-red-400 col-span-2">Gagal mencari data.</p>';
-            }
+
+                if (play.success && play.data.episodes.length > 0) {
+                    const titleStr = play.data.title || document.getElementById('detail-title').innerText;
+                    document.getElementById('detail-episodes').innerHTML = play.data.episodes.map((ep, idx) => `
+                        <button onclick="playEpisode('${ep.url}', ${idx + 1}, '${titleStr.replace(/'/g, "\\'")}')" class="bg-[#1e293b] hover:bg-[#0ea5e9] text-white border border-slate-700 py-2.5 rounded-xl text-xs font-bold transition-colors">
+                            EP ${idx + 1}
+                        </button>
+                    `).join('');
+                } else {
+                    document.getElementById('detail-episodes').innerHTML = '<p class="text-xs text-red-500 col-span-4">Episode belum tersedia.</p>';
+                }
+
+            } catch(e) { console.error(e); }
         }
 
-        // --- Event Listeners ---
-        document.getElementById('searchBtn').addEventListener('click', handleSearch);
+        function playEpisode(videoUrl, epNum, title) {
+            const playerContainer = document.getElementById('video-container');
+            const video = document.getElementById('main-player');
+            
+            // Save to local history
+            saveHistory(title, currentDramaImage, currentDramaUrl, epNum);
+
+            // Update UI
+            document.getElementById('now-playing-title').innerText = title;
+            document.getElementById('now-playing-ep').innerText = "Sedang diputar: Episode " + epNum;
+            
+            // Show Player
+            playerContainer.classList.remove('hidden');
+            playerContainer.className = 'player-normal'; // Always start normal at top
+            document.getElementById('floating-controls').classList.add('hidden');
+            document.getElementById('player-meta').classList.remove('hidden');
+            
+            isPlayerActive = true;
+            
+            // Play Video
+            video.src = videoUrl;
+            video.play();
+            window.scrollTo(0, 0); // Scroll to top to see player
+        }
+
+        // Floating Player Controls
+        function maximizePlayer() {
+            switchTab('detail'); // Going back to detail maximizes it via switchTab logic
+            window.scrollTo(0, 0);
+        }
+
+        function closePlayer() {
+            const playerContainer = document.getElementById('video-container');
+            const video = document.getElementById('main-player');
+            video.pause();
+            video.src = "";
+            playerContainer.classList.add('hidden');
+            isPlayerActive = false;
+        }
+
+        // 5. Local Storage History Logic
+        function saveHistory(title, image, url, lastEp) {
+            let history = JSON.parse(localStorage.getItem('melolo_history')) || [];
+            // Remove if already exists to push to top
+            history = history.filter(h => h.url !== url);
+            history.unshift({ title, image, url, lastEp, time: new Date().getTime() });
+            // Keep only last 20
+            if(history.length > 20) history.pop();
+            localStorage.setItem('melolo_history', JSON.stringify(history));
+        }
+
+        function loadLibrary() {
+            const history = JSON.parse(localStorage.getItem('melolo_history')) || [];
+            const container = document.getElementById('library-list');
+            
+            if (history.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 bg-[#1e293b]/50 rounded-2xl border border-slate-800">
+                        <svg class="w-12 h-12 text-slate-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <p class="text-sm text-slate-400">Belum ada histori tontonan.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = history.map(h => `
+                <div onclick="openDetail('${h.url}', '${h.image}')" class="flex gap-3 bg-[#1e293b] p-2 rounded-xl border border-slate-800 shadow-md cursor-pointer active:scale-95 transition-transform">
+                    <img src="${h.image}" class="w-20 h-24 object-cover rounded-lg" referrerpolicy="no-referrer">
+                    <div class="flex-1 py-1">
+                        <h3 class="font-bold text-white text-sm line-clamp-2 mb-1">${h.title}</h3>
+                        <p class="text-xs text-[#0ea5e9] font-semibold">Terakhir nonton: Ep ${h.lastEp}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Search Input Enter Key
         document.getElementById('searchInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleSearch();
-        });
-        document.getElementById('backBtn').addEventListener('click', () => {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('search-view').classList.add('hidden');
-            document.getElementById('home-view').classList.remove('hidden');
+            if (e.key === 'Enter') doSearch();
         });
 
-        // Init
-        loadHome();
+        // Initialize App
+        initHome();
     </script>
 </body>
-</html>
+    </html>
